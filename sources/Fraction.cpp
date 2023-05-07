@@ -5,52 +5,41 @@
 using namespace std;
 namespace ariel
 {
-    int commonDivider(int a, int b)
+    Fraction::Fraction(float num)
     {
-        if (a == 0)
-        {
-            return b;
-        }
-        else if (b == 0)
-        {
-            return a;
-        }
-        if (a < b)
-        {
-            return commonDivider(a, b % a);
-        }
-        else
-        {
-            return commonDivider(b, a % b);
-        }
-    }
-
-    Fraction floatToFrac(float number)
-    {
-        int power = 1;
-        while (number != (int)number && power < 1000)
-        {
-            number *= 10;
-            power *= 10;
-        }
-        int comdiv = commonDivider(number, power);
-        number = number / comdiv;
-        power = power / comdiv;
-        return Fraction(number, power);
+        this->_num1 = 1000 * num;
+        this->_num2 = 1000;
+        int cd = __gcd(abs(this->_num1), abs(this->_num2));
+        this->_num1 /= cd;
+        this->_num2 /= cd;
     }
 
     Fraction::Fraction(int num1, int num2)
     {
         if (num2 == 0)
         {
-            throw std::invalid_argument("Can't divide by zero");
+            throw std::invalid_argument("std::runtime_error");
         }
         else
         {
-            int comdiv = commonDivider(num1, num2);
-            this->_num1 = num1 / comdiv;
-            this->_num2 = num2 / comdiv;
+            int comdiv = __gcd(abs(num1), abs(num2));
+            if (num2 < 0)
+            {
+                this->_num1 = (-1 * num1) / comdiv;
+                this->_num2 = (-1 * num2) / comdiv;
+            }
+            else
+            {
+                this->_num1 = num1 / comdiv;
+                this->_num2 = num2 / comdiv;
+            }
         }
+    }
+
+    Fraction::Fraction()
+    {
+        this->_num1 = 0;
+        this->_num2 = 1;
     }
 
     Fraction::~Fraction() = default;
@@ -65,9 +54,13 @@ namespace ariel
 
     Fraction Fraction::operator+(const Fraction &other) const
     {
+        _overflow_multiplication_check(this->_num1, other._num2);
+        _overflow_multiplication_check(this->_num2, other._num1);
+        _overflow_addition_check((this->_num1 * other._num2), (this->_num2 * other._num1));
+        _overflow_multiplication_check(this->_num2, other._num1);
         int up = (this->_num1 * other._num2) + (this->_num2 * other._num1);
         int down = this->_num2 * other._num2;
-        int comdiv = commonDivider(up, down);
+        int comdiv = __gcd(abs(up), abs(down));
         up = up / comdiv;
         down = down / comdiv;
         return Fraction(up, down);
@@ -75,21 +68,23 @@ namespace ariel
 
     Fraction Fraction::operator+(float val) const
     {
-        Fraction fVal = floatToFrac(val);
+        Fraction fVal = Fraction(val);
         return fVal + *this;
     }
 
     Fraction operator+(float val, const Fraction &other)
     {
-        Fraction fVal = floatToFrac(val);
+        Fraction fVal = Fraction(val);
         return fVal + other;
     }
 
     Fraction Fraction::operator*(const Fraction &other) const
     {
+        _overflow_multiplication_check(this->_num1, other._num1);
+        _overflow_multiplication_check(this->_num2, other._num2);
         int up = this->_num1 * other._num1;
         int down = this->_num2 * other._num2;
-        int comdiv = commonDivider(up, down);
+        int comdiv = __gcd(abs(up), abs(down));
         up = up / comdiv;
         down = down / comdiv;
         return Fraction(up, down);
@@ -97,21 +92,25 @@ namespace ariel
 
     Fraction Fraction::operator*(float val) const
     {
-        Fraction fVal = floatToFrac(val);
+        Fraction fVal = Fraction(val);
         return fVal * *this;
     }
 
     Fraction operator*(float val, const Fraction &other)
     {
-        Fraction fVal = floatToFrac(val);
+        Fraction fVal = Fraction(val);
         return fVal * other;
     }
 
     Fraction Fraction::operator-(const Fraction &other) const
     {
+        _overflow_multiplication_check(this->_num1, other._num2);
+        _overflow_multiplication_check(this->_num2, other._num1);
+        _overflow_subtraction_check((this->_num1 * other._num2), (other._num1 * this->_num2));
+        _overflow_multiplication_check(this->_num2, other._num2);
         int up = (this->_num1 * other._num2) - (other._num1 * this->_num2);
         int down = (this->_num2 * other._num2);
-        int comdiv = commonDivider(up, down);
+        int comdiv = __gcd(abs(up), abs(down));
         up = up / comdiv;
         down = down / comdiv;
         return Fraction(up, down);
@@ -119,26 +118,29 @@ namespace ariel
 
     Fraction Fraction::operator-(float val) const
     {
-        Fraction fVal = floatToFrac(-1.0F * val);
-        return fVal + *this;
+        Fraction fVal = Fraction(val);
+        return *this - fVal;
     }
 
     Fraction operator-(float val, const Fraction &other)
     {
-        return floatToFrac(val) - other;
+        Fraction fVal = Fraction(val);
+        return fVal - other;
     }
 
     Fraction Fraction::operator/(const Fraction &other) const
     {
-        if (this->_num1 == 0 || other._num1 == 0)
+        _overflow_multiplication_check(this->_num1, other._num1);
+        _overflow_multiplication_check(this->_num2, other._num2);
+        if (other._num1 == 0)
         {
-            throw std::invalid_argument("Can't divide by zero");
+            throw std::runtime_error("std::runtime_error");
         }
         else
         {
             int up = this->_num1 * other._num2;
             int down = this->_num2 * other._num1;
-            int comdiv = commonDivider(up, down);
+            int comdiv = __gcd(abs(up), abs(down));
             up = up / comdiv;
             down = down / comdiv;
             return Fraction(up, down);
@@ -147,15 +149,14 @@ namespace ariel
 
     Fraction Fraction::operator/(float val) const
     {
-        Fraction fVal = floatToFrac(val);
-        return fVal / *this;
+        Fraction fVal = Fraction(val);
+        return *this / fVal;
     }
 
     Fraction operator/(float val, const Fraction &other)
     {
-        Fraction fVal = floatToFrac(val);
-        Fraction ret = fVal / other;
-        return 1.0 / ret;
+        Fraction fVal = Fraction(val);
+        return fVal / other;
     }
 
     bool Fraction::operator==(const Fraction &other) const
@@ -165,13 +166,13 @@ namespace ariel
 
     bool operator==(float val, const Fraction &other)
     {
-        Fraction fVal = floatToFrac(val);
+        Fraction fVal = Fraction(val);
         return fVal == other;
     }
 
     bool Fraction::operator==(float val) const
     {
-        Fraction fVal = floatToFrac(val);
+        Fraction fVal = Fraction(val);
         return fVal == *this;
     }
 
@@ -187,14 +188,14 @@ namespace ariel
 
     bool Fraction::operator>(float val) const
     {
-        Fraction fVal = floatToFrac(val);
-        return fVal > *this;
+        Fraction fVal = Fraction(val);
+        return *this > fVal;
     }
 
     bool operator>(float val, const Fraction &other)
     {
-        Fraction fVal = floatToFrac(val);
-        return fVal < other;
+        Fraction fVal = Fraction(val);
+        return fVal > other;
     }
 
     bool Fraction::operator>=(const Fraction &other) const
@@ -209,62 +210,70 @@ namespace ariel
 
     bool Fraction::operator>=(float val) const
     {
-        Fraction fVal = floatToFrac(val);
-        return fVal >= *this;
+        Fraction fVal = Fraction(val);
+        return *this >= fVal;
     }
 
     bool operator<(float val, const Fraction &other)
     {
-        Fraction fVal = floatToFrac(val);
+        Fraction fVal = Fraction(val);
         return fVal < other;
     }
 
     bool Fraction::operator<(float val) const
     {
-        Fraction fVal = floatToFrac(val);
+        Fraction fVal = Fraction(val);
         return fVal > *this;
     }
 
     bool Fraction::operator<=(float val) const
     {
-        Fraction fVal = floatToFrac(val);
-        return fVal <= *this;
+        Fraction fVal = Fraction(val);
+        return *this <= fVal;
     }
 
     bool operator<=(float val, const Fraction &other)
     {
-        Fraction fVal = floatToFrac(val);
+        Fraction fVal = Fraction(val);
         return fVal <= other;
     }
 
     bool operator>=(float val, const Fraction &other)
     {
-        Fraction fVal = floatToFrac(val);
+        Fraction fVal = Fraction(val);
         return fVal >= other;
     }
 
     Fraction &Fraction::operator++()
     {
         this->_num1 += this->_num2;
+        int comdiv = __gcd(abs(this->_num1), abs(this->_num2));
+        this->_num1 = this->_num1 / comdiv;
+        this->_num2 = this->_num2 / comdiv;
         return *this;
     }
 
     Fraction Fraction::operator++(int)
     {
-        this->_num1 += this->_num2;
-        return *this;
+        Fraction t = *this;
+        ++(*this);
+        return t;
     }
 
     Fraction &Fraction::operator--()
     {
         this->_num1 -= this->_num2;
+        int comdiv = __gcd(abs(this->_num1), (this->_num2));
+        this->_num1 = this->_num1 / comdiv;
+        this->_num2 = this->_num2 / comdiv;
         return *this;
     }
 
     Fraction Fraction::operator--(int)
     {
-        this->_num1 -= this->_num2;
-        return *this;
+        Fraction t = *this;
+        --(*this);
+        return t;
     }
 
     Fraction &operator+=(Fraction &frac, const Fraction &other)
@@ -317,13 +326,32 @@ namespace ariel
 
     ostream &operator<<(ostream &os, const Fraction &other)
     {
-        os << other._num1 << "/" << other._num2 << endl;
+        os << other._num1 << "/" << other._num2;
         return os;
     }
 
     istream &operator>>(istream &is, Fraction &other)
     {
-        is >> other._num1 >> other._num2;
+        int numitor = 0, denitor = 0;
+        is >> numitor >> denitor;
+        if (is.fail())
+        {
+            throw std::runtime_error("Invalid input");
+        }
+        else if (denitor == 0)
+        {
+            throw std::runtime_error("std::runtime_error");
+        }
+        else if (denitor < 0)
+        {
+            numitor *= -1;
+            denitor *= -1;
+        }
+        other._num1 = numitor;
+        other._num2 = denitor;
+        int comdiv = __gcd(abs(other._num1), abs(other._num2));
+        other._num1 = other._num1 / comdiv;
+        other._num2 = other._num2 / comdiv;
         return is;
     }
 
